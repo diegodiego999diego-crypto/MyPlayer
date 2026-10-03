@@ -48,7 +48,8 @@ class RecursiveFileObserver(
     private inner class SingleObserver(val dir: File) : FileObserver(dir, mask) {
         override fun onEvent(event: Int, path: String?) {
             val type = event and ALL_EVENTS
-n            if (type == DELETE_SELF || type == MOVE_SELF) {
+
+            if (type == DELETE_SELF || type == MOVE_SELF) {
                 // La carpeta observada desaparecio: quitar su observador
                 synchronized(observers) {
                     observers.remove(dir.absolutePath)
