@@ -1,0 +1,17 @@
+# Compiled output
+/build
+/app/build
+
+# Gradle
+.gradle
+
+# Local configuration
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea
+
+# Keystore
+*.jks
+*.keystore
