@@ -40,6 +40,8 @@ data class UiState(
     val currentSong: Song? = null,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
+    /** Texto de búsqueda activo (vacío = sin búsqueda). */
+    val searchQuery: String = "",
     @Player.RepeatMode val repeatMode: Int = Player.REPEAT_MODE_OFF
 )
 
@@ -189,6 +191,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun closeFolder() = _uiState.update { it.copy(selectedFolder = null) }
     fun hidePlayer() = _uiState.update { it.copy(playerVisible = false) }
     fun showPlayer() = _uiState.update { it.copy(playerVisible = true) }
+
+    // ---------- Búsqueda ----------
+
+    /** Actualiza el texto de búsqueda; la UI filtra en vivo. */
+    fun setSearchQuery(q: String) = _uiState.update { it.copy(searchQuery = q) }
+    fun clearSearch() = _uiState.update { it.copy(searchQuery = "") }
+
+    /**
+     * Reproduce una cancion desde resultados de búsqueda. Construye una
+     * lista de reproducción con todas las canciones que matchearon (no
+     * solo la carpeta origen), de modo que "siguiente" avance dentro de
+     * los resultados.
+     */
+    fun playFromSearch(results: List<Song>, index: Int) {
+        playSongs(results, index)
+    }
 
     // ---------- Reproduccion ----------
 
