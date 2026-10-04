@@ -24,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.player.ggo.MainViewModel
+import com.player.ggo.ui.components.AlbumArt
+import com.player.ggo.ui.components.MiniPlayer
 
 /** Lista plana de TODAS las carpetas con musica dentro de /sdcard/Music. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +41,11 @@ fun FolderListScreen(vm: MainViewModel) {
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
+        },
+        bottomBar = {
+            if (state.currentSong != null) {
+                MiniPlayer(vm)
+            }
         }
     ) { padding ->
         when {
@@ -60,16 +67,22 @@ fun FolderListScreen(vm: MainViewModel) {
 
             else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
                 items(state.folders, key = { it.path }) { folder ->
+                    // Primera cancion con caratula, para previsualizar
+                    val previewArt = folder.songs.firstNotNullOfOrNull { it.albumArtUri }
                     ListItem(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { vm.openFolder(folder) },
                         leadingContent = {
-                            Icon(
-                                Icons.Default.Folder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            if (previewArt != null) {
+                                AlbumArt(albumArtUri = previewArt, size = 48, corner = 8)
+                            } else {
+                                Icon(
+                                    Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         },
                         headlineContent = { Text(folder.name) },
                         supportingContent = {

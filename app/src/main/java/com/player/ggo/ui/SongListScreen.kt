@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.player.ggo.MainViewModel
 import com.player.ggo.ui.components.AlbumArt
+import com.player.ggo.ui.components.MiniPlayer
 
 /** Canciones de la carpeta seleccionada. Al pulsar, reproduce y abre el player. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +46,11 @@ fun SongListScreen(vm: MainViewModel) {
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
+        },
+        bottomBar = {
+            if (state.currentSong != null) {
+                MiniPlayer(vm)
+            }
         }
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
