@@ -2,6 +2,7 @@ package com.player.ggo
 
 import android.app.Application
 import android.content.ComponentName
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -17,9 +18,9 @@ import com.player.ggo.data.Song
 import com.player.ggo.service.MusicPlayerService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -29,6 +30,8 @@ data class UiState(
     val loading: Boolean = true,
     /** Lista plana: TODAS las carpetas que contienen música, anidadas o no. */
     val folders: List<MusicFolder> = emptyList(),
+    /** Lista plana de TODAS las canciones (para búsqueda). */
+    val allSongs: List<Song> = emptyList(),
     val selectedFolder: MusicFolder? = null,
     val playerVisible: Boolean = false,
     val isPlaying: Boolean = false,
@@ -45,14 +48,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var fileObserver: RecursiveFileObserver? = null
     private var ticker: Job? = null
 
+    /** Mapa mediaId -> Song para reconstruir currentSong al cambiar de pista. */
+    private var songByMediaId: Map<String, Song> = emptyMap()
+
     private val _uiState = MutableStateFlow(UiState())
-    val uiState: StateFlow<UiState> = _uiState
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    init {
+        // Colecciona el cache Room: la lista carga al instante desde BD
+        // y se actualiza sola cada vez que refreshFromMediaStore() escribe.
+        viewModelScope.launch {
+            repo.foldersFlow.collect { folders ->
+                _uiState.update { it.copy(loading = false, folders = folders) }
+            }
+        }
+        viewModelScope.launch {
+            repo.allSongsFlow.collect { songs ->
+                _uiState.update { it.copy(allSongs = songs) }
+            }
+        }
+    }
 
     fun onPermissionResult(granted: Boolean) {
         _uiState.update { it.copy(permissionGranted = granted) }
         if (!granted) return
         connectPlayer()
-        scanMusic()
+        // Re-escaneo completo al abrir la app: cubre cambios con la app cerrada.
+        refreshFromMediaStore()
         startObserving()
     }
 
@@ -77,16 +99,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _uiState.update { it.copy(isPlaying = isPlaying) }
         }
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val meta = mediaItem?.mediaMetadata
+            val song = mediaItem?.mediaId?.let { songByMediaId[it] }
             _uiState.update {
                 it.copy(
-                    currentSong = Song(
-                        id = mediaItem?.mediaId?.toLongOrNull() ?: -1,
-                        title = meta?.title?.toString() ?: "Desconocida",
-                        artist = meta?.artist?.toString() ?: "Desconocido",
-                        durationMs = meta?.extras?.getLong("durationMs") ?: 0L,
-                        contentUri = mediaItem?.localConfiguration?.uri.toString()
-                    ),
+                    currentSong = song,
                     durationMs = controller?.duration?.takeIf { d -> d > 0 } ?: 0L
                 )
             }
@@ -101,37 +117,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Escanea /sdcard/Music con MediaStore y aplana las carpetas. */
-    fun scanMusic() {
+    /** Reconsulta MediaStore y reescribe el cache Room. */
+    fun refreshFromMediaStore() {
         viewModelScope.launch(Dispatchers.IO) {
-            val folders = repo.scanMusicFolders()
-            _uiState.update { state ->
-                // Si la carpeta seleccionada sigue existiendo, refresca sus canciones.
-                val refreshed = state.selectedFolder?.let { sel ->
-                    folders.firstOrNull { it.path == sel.path }
-                }
-                state.copy(
-                    loading = false,
-                    folders = folders,
-                    selectedFolder = refreshed
-                )
-            }
+            runCatching { repo.refreshFromMediaStore() }
         }
     }
 
     /**
      * FileObserver recursivo sobre /sdcard/Music.
-     * Ante cualquier alta, baja o movimiento de archivos/carpetas se re-escanea
-     * (con debounce), asi la lista siempre refleja el almacenamiento real.
+     * Ante cualquier alta, baja o movimiento de archivos/carpetas se
+     * re-escanea (con debounce), asi la lista siempre refleja el
+     * almacenamiento real.
      */
     private fun startObserving() {
         fileObserver?.stopWatching()
-        fileObserver = RecursiveFileObserver(MusicRepository.musicRoot) {
+        fileObserver = RecursiveFileObserver(MusicRepository.musicRoot) { _ ->
             viewModelScope.launch {
-                delay(800) // debounce para ráfagas de eventos
-                scanMusic()
+                refreshFromMediaStore()
             }
         }.also { it.startWatching() }
+    }
+
+    fun stopObservers() {
+        fileObserver?.stopWatching()
+        fileObserver = null
     }
 
     // ---------- Navegacion ----------
@@ -145,27 +155,42 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Reproduce una cancion y salta automaticamente al reproductor completo. */
     fun playSong(folder: MusicFolder, index: Int) {
+        playSongs(folder.songs, index)
+    }
+
+    /** Reproduce una lista arbitraria de canciones desde [index]. */
+    fun playSongs(songs: List<Song>, index: Int) {
         val c = controller ?: return
-        val items = folder.songs.map { song ->
-            MediaItem.Builder()
-                .setMediaId(song.id.toString())
-                .setUri(song.contentUri)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(song.title)
-                        .setArtist(song.artist)
-                        .setExtras(android.os.Bundle().apply {
-                            putLong("durationMs", song.durationMs)
-                        })
-                        .build()
-                )
-                .build()
-        }
-        c.setMediaItems(items, index, 0L)
+        if (songs.isEmpty()) return
+        songByMediaId = songs.associateBy { it.id.toString() }
+        val items = songs.map { it.toMediaItem() }
+        c.setMediaItems(items, index.coerceIn(0, items.lastIndex), 0L)
         c.prepare()
         c.play()
-        _uiState.update { it.copy(playerVisible = true) }
+        _uiState.update {
+            it.copy(
+                playerVisible = true,
+                currentSong = songs[index.coerceIn(0, songs.lastIndex)]
+            )
+        }
     }
+
+    private fun Song.toMediaItem(): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(id.toString())
+            .setUri(contentUri)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(artist)
+                    .setAlbumTitle(albumName)
+                    .setArtworkUri(albumArtUri?.let { Uri.parse(it) })
+                    .setExtras(android.os.Bundle().apply {
+                        putLong("durationMs", durationMs)
+                    })
+                    .build()
+            )
+            .build()
 
     fun togglePlayPause() {
         controller?.let { if (it.isPlaying) it.pause() else it.play() }
@@ -192,7 +217,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         ticker?.cancel()
         ticker = viewModelScope.launch {
             while (true) {
-                delay(500)
+                kotlinx.coroutines.delay(500)
                 val c = controller ?: continue
                 _uiState.update {
                     it.copy(positionMs = c.currentPosition.coerceAtLeast(0L))
@@ -204,7 +229,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     override fun onCleared() {
         ticker?.cancel()
         fileObserver?.stopWatching()
+        fileObserver = null
         controller?.release()
+        controller = null
         super.onCleared()
     }
 }
