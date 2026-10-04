@@ -1,6 +1,5 @@
 package com.player.ggo.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,10 +47,9 @@ fun AlbumArt(
         tonalElevation = 2.dp
     ) {
         if (albumArtUri.isNullOrEmpty()) {
+            // Surface ya pinta surfaceVariant; solo centramos el icono.
             Box(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clip(shape),
+                modifier = Modifier.clip(shape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

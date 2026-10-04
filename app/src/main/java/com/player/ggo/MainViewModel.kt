@@ -274,7 +274,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         ticker?.cancel()
         ticker = viewModelScope.launch {
             while (true) {
-                kotlinx.coroutines.delay(500)
+                delay(500)
                 val c = controller ?: continue
                 _uiState.update {
                     it.copy(positionMs = c.currentPosition.coerceAtLeast(0L))
