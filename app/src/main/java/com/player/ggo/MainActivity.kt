@@ -5,16 +5,16 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.player.ggo.ui.FolderListScreen
 import com.player.ggo.ui.PlayerScreen
@@ -41,7 +42,15 @@ import com.player.ggo.ui.theme.MyPlayerTheme
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Splash screen: se mantiene visible hasta que sepamos si el
+        // permiso de audio esta concedido, evitando el parpadeo de la
+        // pantalla de permiso cuando ya esta dado.
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        var permissionChecked = false
+        splash.setKeepOnScreenCondition { !permissionChecked }
+
         enableEdgeToEdge()
         setContent {
             MyPlayerTheme {
@@ -49,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppRoot()
+                    AppRoot(onPermissionResolved = { permissionChecked = true })
                 }
             }
         }
@@ -92,7 +101,10 @@ class MainActivity : ComponentActivity() {
 internal object AppRootVmHolder { @Volatile var vm: MainViewModel? = null }
 
 @Composable
-fun AppRoot(vm: MainViewModel = viewModel()) {
+fun AppRoot(
+    vm: MainViewModel = viewModel(),
+    onPermissionResolved: () -> Unit
+) {
     AppRootVmHolder.vm = vm
     val context = LocalContext.current
     val state by vm.uiState.collectAsState()
@@ -104,12 +116,25 @@ fun AppRoot(vm: MainViewModel = viewModel()) {
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted -> vm.onPermissionResult(granted) }
+    ) { granted ->
+        vm.onPermissionResult(granted)
+        onPermissionResolved()
+    }
 
+    // Comprueba el permiso una sola vez, de forma sincrona respecto a
+    // la primera composicion. La splash screen se mantiene visible
+    // hasta que onPermissionResolved() se invoca.
     LaunchedEffect(Unit) {
         val granted = ContextCompat.checkSelfPermission(context, permission) ==
             PackageManager.PERMISSION_GRANTED
-        if (granted) vm.onPermissionResult(true) else launcher.launch(permission)
+        if (granted) {
+            vm.onPermissionResult(true)
+            onPermissionResolved()
+        } else {
+            // Lanzamos el dialogo del sistema; la splash se quita tras
+            // resolver (en el callback del launcher).
+            launcher.launch(permission)
+        }
     }
 
     val navTarget = when {

@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Tema base de la app: hereda de Material Light sin ActionBar.
+         Compose pinta su propio MaterialTheme por encima; este tema
+         solo aporta el fondo inicial y la pantalla de splash. -->
     <style name="Theme.MyPlayer" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Color de fondo de la splash screen (blanco en claro, negro en
+             oscuro lo gestiona el sistema via windowBackground). -->
+        <item name="postSplashScreenTheme">@style/Theme.MyPlayer</item>
+    </style>
+
+    <!-- Tema de la splash screen: fondo plano que coincide con el fondo
+         inicial de Compose, sin icono parpadeante. installSplashScreen()
+         lo mantiene visible hasta que la app sabe si tiene permiso. -->
+    <style name="Theme.MyPlayer.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.MyPlayer</item>
     </style>
 </resources>

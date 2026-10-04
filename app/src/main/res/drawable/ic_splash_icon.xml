@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono mostrado por la splash screen de AndroidX core-splashscreen.
+  Debe estar dentro del circulo central (los 2/3 del lienzo). Fondo
+  transparente para que se vea el windowSplashScreenBackground.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Nota + triangulo de play, centrado en la zona segura (48..96) -->
+    <path
+        android:fillColor="#5B5BD6"
+        android:pathData="M50,76 L50,42 L72,36 L72,68 A6,6 0 1,1 60,68 L60,48 L52,50 L52,76 A6,6 0 1,1 40,76 Z" />
+</vector>
