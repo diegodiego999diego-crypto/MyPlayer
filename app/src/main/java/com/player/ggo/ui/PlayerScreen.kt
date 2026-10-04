@@ -206,6 +206,10 @@ private fun SongTitles(state: UiState) {
 
 @Composable
 private fun ProgressBlock(state: UiState, vm: MainViewModel) {
+    // Slider de Material 3: riel fino y redondeado, pulgar circular,
+    // colores del tema por defecto (primary para activo, surfaceVariant
+    // para inactivo). Sin customizacion de colores manuales que romperia
+    // el tema dinamico.
     Slider(
         value = if (state.durationMs > 0)
             state.positionMs.toFloat() / state.durationMs else 0f,
@@ -218,12 +222,14 @@ private fun ProgressBlock(state: UiState, vm: MainViewModel) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Text(
             formatDuration(state.positionMs),
-            style = MaterialTheme.typography.labelMedium
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.weight(1f))
         Text(
             formatDuration(state.durationMs),
-            style = MaterialTheme.typography.labelMedium
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
