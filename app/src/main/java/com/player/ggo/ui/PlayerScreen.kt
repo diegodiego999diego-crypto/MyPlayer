@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import com.player.ggo.MainViewModel
+import com.player.ggo.ui.components.AlbumArt
 
 /**
  * Reproductor a pantalla completa.
@@ -75,11 +75,11 @@ fun PlayerScreen(vm: MainViewModel) {
         ) {
             Spacer(Modifier.weight(1f))
 
-            Icon(
-                Icons.Default.MusicNote,
-                contentDescription = null,
-                modifier = Modifier.size(160.dp),
-                tint = MaterialTheme.colorScheme.primary
+            // Caratula grande del album (con imagen por defecto si no hay)
+            AlbumArt(
+                albumArtUri = state.currentSong?.albumArtUri,
+                size = 240,
+                corner = 24
             )
 
             Spacer(Modifier.height(32.dp))
@@ -97,6 +97,15 @@ fun PlayerScreen(vm: MainViewModel) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            state.currentSong?.albumName?.takeIf { it.isNotBlank() }?.let { album ->
+                Text(
+                    text = album,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 

@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import com.player.ggo.MainViewModel
+import com.player.ggo.ui.components.AlbumArt
 
 /** Canciones de la carpeta seleccionada. Al pulsar, reproduce y abre el player. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,14 +54,23 @@ fun SongListScreen(vm: MainViewModel) {
                         .fillMaxWidth()
                         .clickable { vm.playSong(folder, index) },
                     leadingContent = {
-                        Icon(
-                            Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                        AlbumArt(
+                            albumArtUri = song.albumArtUri,
+                            size = 48,
+                            corner = 8
                         )
                     },
-                    headlineContent = { Text(song.title) },
-                    supportingContent = { Text(song.artist) },
+                    headlineContent = {
+                        Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    supportingContent = {
+                        Text(
+                            "${song.artist} · ${song.albumName}",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     trailingContent = { Text(formatDuration(song.durationMs)) }
                 )
             }
