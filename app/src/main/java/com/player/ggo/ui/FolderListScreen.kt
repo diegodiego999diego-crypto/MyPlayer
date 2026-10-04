@@ -34,20 +34,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.player.ggo.MainViewModel
+import com.player.ggo.SortMode
 import com.player.ggo.data.MusicFolder
 import com.player.ggo.data.Song
 import com.player.ggo.ui.components.AlbumArt
 import com.player.ggo.ui.components.MiniPlayer
 import com.player.ggo.ui.components.SongListItem
+import com.player.ggo.ui.components.SortMenuButton
 
 /**
  * Lista plana de TODAS las carpetas con musica dentro de /sdcard/Music,
- * con busqueda por titulo / artista / carpeta.
+ * con busqueda por titulo / artista / carpeta y orden configurable.
  *
  * - Con [searchQuery] vacio: lista de carpetas.
  * - Con query: seccion "Carpetas" (carpetas cuyo nombre matchea) +
  *   seccion "Canciones" (canciones cuyo titulo o artista matchea).
- *   Mantener pulsada una cancion ofrece "Reproducir a continuacion".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,9 +57,20 @@ fun FolderListScreen(vm: MainViewModel) {
     val query = state.searchQuery.trim()
     val q = query.lowercase()
 
-    val matchedFolders: List<MusicFolder> = remember(query, state.folders) {
-        if (q.isEmpty()) state.folders
-        else state.folders.filter { it.name.contains(q, ignoreCase = true) }
+    val matchedFolders: List<MusicFolder> = remember(query, state.folders, state.folderSort) {
+        val base = if (q.isEmpty()) state.folders
+            else state.folders.filter { it.name.contains(q, ignoreCase = true) }
+        when (state.folderSort) {
+            SortMode.NAME -> base.sortedBy { it.name.lowercase() }
+            SortMode.COUNT -> base.sortedByDescending { it.songs.size }
+            SortMode.DATE -> base.sortedByDescending { f ->
+                f.songs.maxOfOrNull { it.dateModified } ?: 0L
+            }
+            SortMode.DURATION -> base.sortedByDescending { f ->
+                f.songs.sumOf { it.durationMs }
+            }
+            SortMode.ARTIST -> base // no aplica a carpetas
+        }
     }
     val matchedSongs: List<Song> = remember(query, state.allSongs) {
         if (q.isEmpty()) emptyList()
@@ -73,6 +85,13 @@ fun FolderListScreen(vm: MainViewModel) {
         topBar = {
             TopAppBar(
                 title = { Text("Mi música") },
+                actions = {
+                    SortMenuButton(
+                        current = state.folderSort,
+                        options = listOf(SortMode.NAME, SortMode.COUNT, SortMode.DATE, SortMode.DURATION),
+                        onSelect = { vm.setFolderSort(it) }
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )

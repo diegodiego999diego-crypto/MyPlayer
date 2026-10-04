@@ -25,7 +25,8 @@ data class Song(
     val contentUri: String,
     val albumArtUri: String?,
     val relativePath: String,
-    val folderName: String
+    val folderName: String,
+    val dateModified: Long
 )
 
 /** Una carpeta con musica. [path] es la ruta relativa dentro de Music/. */
@@ -188,5 +189,6 @@ private fun SongEntity.toSong() = Song(
     contentUri = contentUri,
     albumArtUri = albumArtUri,
     relativePath = relativePath,
-    folderName = folderName
+    folderName = folderName,
+    dateModified = dateModified
 )
