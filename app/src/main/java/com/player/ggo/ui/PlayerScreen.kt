@@ -1,6 +1,7 @@
 package com.player.ggo.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -164,33 +165,41 @@ private fun PlayerLandscape(state: UiState, vm: MainViewModel, modifier: Modifie
 @Composable
 private fun SongTitles(state: UiState) {
     val title = state.currentSong?.title?.takeIf { it.isNotBlank() } ?: "—"
+    // basicMarquee solo desplaza si el texto no cabe; con maxLines=1
+    // garantiza una linea y scroll horizontal elegante para titulos
+    // largos en vez de cortar con "...".
     Text(
         text = title,
-        style = MaterialTheme.typography.headlineSmall,
+        style = MaterialTheme.typography.titleLarge,
         color = MaterialTheme.colorScheme.onSurface,
         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .basicMarquee()
     )
     val artist = state.currentSong?.artist
     if (artist != null && hasArtist(artist)) {
         Text(
             text = displayArtist(artist),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
         )
     }
     state.currentSong?.albumName?.takeIf { it.isNotBlank() }?.let { album ->
         Text(
             text = album,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -221,12 +230,66 @@ private fun ProgressBlock(state: UiState, vm: MainViewModel) {
 
 @Composable
 private fun ControlsRow(state: UiState, vm: MainViewModel, modifier: Modifier = Modifier) {
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Modo de repeticion
+        // Fila principal: 5 elementos simetricos.
+        //   retroceder 10s | anterior | play/pausa (mayor) | siguiente | adelantar 10s
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { vm.back10() }) {
+                Icon(
+                    Icons.Default.Replay10,
+                    contentDescription = "Retroceder 10 s",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            IconButton(onClick = { vm.previous() }) {
+                Icon(
+                    Icons.Default.SkipPrevious,
+                    contentDescription = "Anterior",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            FilledIconButton(
+                onClick = { vm.togglePlayPause() },
+                modifier = Modifier.size(72.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(
+                    if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (state.isPlaying) "Pausar" else "Reproducir",
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            IconButton(onClick = { vm.next() }) {
+                Icon(
+                    Icons.Default.SkipNext,
+                    contentDescription = "Siguiente",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            IconButton(onClick = { vm.forward10() }) {
+                Icon(
+                    Icons.Default.Forward10,
+                    contentDescription = "Adelantar 10 s",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Segunda fila: solo el boton de repeticion, centrado.
         IconButton(onClick = { vm.cycleRepeatMode() }) {
             when (state.repeatMode) {
                 Player.REPEAT_MODE_ONE -> Icon(
@@ -245,34 +308,6 @@ private fun ControlsRow(state: UiState, vm: MainViewModel, modifier: Modifier = 
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-
-        IconButton(onClick = { vm.back10() }) {
-            Icon(Icons.Default.Replay10, contentDescription = "Retroceder 10 s")
-        }
-        IconButton(onClick = { vm.previous() }) {
-            Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior")
-        }
-
-        FilledIconButton(
-            onClick = { vm.togglePlayPause() },
-            modifier = Modifier.size(64.dp),
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(
-                if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (state.isPlaying) "Pausar" else "Reproducir",
-                modifier = Modifier.size(36.dp)
-            )
-        }
-
-        IconButton(onClick = { vm.next() }) {
-            Icon(Icons.Default.SkipNext, contentDescription = "Siguiente")
-        }
-        IconButton(onClick = { vm.forward10() }) {
-            Icon(Icons.Default.Forward10, contentDescription = "Adelantar 10 s")
         }
     }
 }
