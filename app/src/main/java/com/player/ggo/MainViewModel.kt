@@ -63,6 +63,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    /** Preferencias para recordar la ultima sesion de reproduccion. */
+    private val prefs = app.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+
+    /** Evita restaurar la sesion mas de una vez por arranque. */
+    private var sessionRestored = false
+
     init {
         // Colecciona el cache Room: la lista carga al instante desde BD
         // y se actualiza sola cada vez que refreshFromMediaStore() escribe.
@@ -74,8 +80,56 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repo.allSongsFlow.collect { songs ->
                 _uiState.update { it.copy(allSongs = songs) }
+                maybeRestoreSession()
             }
         }
+    }
+
+    // ---------- Persistencia de sesion ----------
+
+    /**
+     * Guarda la cola actual (ids en orden), el indice y la posicion,
+     * para reanudar donde se quedo al reabrir la app.
+     */
+    private fun saveSession() {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) return
+        val ids = (0 until c.mediaItemCount)
+            .mapNotNull { c.getMediaItemAt(it).mediaId }
+            .joinToString(",")
+        prefs.edit()
+            .putString(KEY_QUEUE_IDS, ids)
+            .putInt(KEY_QUEUE_INDEX, c.currentMediaItemIndex)
+            .putLong(KEY_POSITION_MS, c.currentPosition)
+            .apply()
+    }
+
+    /**
+     * Restaura la sesion guardada cuando YA hay controlador conectado
+     * y el cache de canciones cargado. Prepara la cola pausada en la
+     * posicion exacta donde se quedo; no abre el reproductor ni suena.
+     */
+    private fun maybeRestoreSession() {
+        if (sessionRestored) return
+        val c = controller ?: return
+        if (c.mediaItemCount > 0) { sessionRestored = true; return }
+        val savedIds = prefs.getString(KEY_QUEUE_IDS, null)?.takeIf { it.isNotBlank() } ?: return
+        val songs = _uiState.value.allSongs
+        if (songs.isEmpty()) return
+
+        val byId = songs.associateBy { it.id.toString() }
+        val queue = savedIds.split(",").mapNotNull { byId[it] }
+        if (queue.isEmpty()) { sessionRestored = true; return }
+
+        sessionRestored = true
+        val index = prefs.getInt(KEY_QUEUE_INDEX, 0).coerceIn(0, queue.lastIndex)
+        val position = prefs.getLong(KEY_POSITION_MS, 0L).coerceAtLeast(0L)
+
+        songByMediaId = queue.associateBy { it.id.toString() }
+        c.setMediaItems(queue.map { it.toMediaItem() }, index, position)
+        c.prepare()
+        // Queda pausado; el mini-player aparece para reanudar con un toque.
+        _uiState.update { it.copy(currentSong = queue[index]) }
     }
 
     fun onPermissionResult(granted: Boolean) {
@@ -100,6 +154,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 repeatMode = _uiState.value.repeatMode
             }
             startTicker()
+            maybeRestoreSession()
         }, MoreExecutors.directExecutor())
     }
 
@@ -287,17 +342,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun startTicker() {
         ticker?.cancel()
         ticker = viewModelScope.launch {
+            var ticksSinceSave = 0
             while (true) {
                 delay(500)
                 val c = controller ?: continue
                 _uiState.update {
                     it.copy(positionMs = c.currentPosition.coerceAtLeast(0L))
                 }
+                // Cada ~5 s persiste la sesion (cola + indice + posicion).
+                if (++ticksSinceSave >= 10 && c.mediaItemCount > 0) {
+                    ticksSinceSave = 0
+                    saveSession()
+                }
             }
         }
     }
 
     override fun onCleared() {
+        saveSession()
         ticker?.cancel()
         stopObservers()
         controller?.release()
@@ -308,5 +370,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         /** Debounce para rafagas de eventos de FileObserver/ContentObserver. */
         private const val DEBOUNCE_MS = 800L
+
+        private const val PREFS_NAME = "playback"
+        private const val KEY_QUEUE_IDS = "queue_ids"
+        private const val KEY_QUEUE_INDEX = "queue_index"
+        private const val KEY_POSITION_MS = "position_ms"
     }
 }
