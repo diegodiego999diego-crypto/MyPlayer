@@ -42,8 +42,15 @@ data class UiState(
     val durationMs: Long = 0L,
     /** Texto de búsqueda activo (vacío = sin búsqueda). */
     val searchQuery: String = "",
+    /** Orden de la lista de carpetas. */
+    val folderSort: SortMode = SortMode.NAME,
+    /** Orden de las canciones dentro de una carpeta. */
+    val songSort: SortMode = SortMode.NAME,
     @Player.RepeatMode val repeatMode: Int = Player.REPEAT_MODE_OFF
 )
+
+/** Modos de ordenacion disponibles en las listas. */
+enum class SortMode { NAME, ARTIST, DATE, DURATION, COUNT }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -70,6 +77,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var sessionRestored = false
 
     init {
+        // Restaura las preferencias de ordenacion guardadas.
+        _uiState.update {
+            it.copy(
+                folderSort = readSortMode(KEY_SORT_FOLDER, SortMode.NAME),
+                songSort = readSortMode(KEY_SORT_SONG, SortMode.NAME)
+            )
+        }
         // Colecciona el cache Room: la lista carga al instante desde BD
         // y se actualiza sola cada vez que refreshFromMediaStore() escribe.
         viewModelScope.launch {
@@ -253,6 +267,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setSearchQuery(q: String) = _uiState.update { it.copy(searchQuery = q) }
     fun clearSearch() = _uiState.update { it.copy(searchQuery = "") }
 
+    // ---------- Ordenacion ----------
+
+    /** Cambia y persiste el orden de la lista de carpetas. */
+    fun setFolderSort(mode: SortMode) {
+        _uiState.update { it.copy(folderSort = mode) }
+        prefs.edit().putString(KEY_SORT_FOLDER, mode.name).apply()
+    }
+
+    /** Cambia y persiste el orden de las canciones dentro de carpetas. */
+    fun setSongSort(mode: SortMode) {
+        _uiState.update { it.copy(songSort = mode) }
+        prefs.edit().putString(KEY_SORT_SONG, mode.name).apply()
+    }
+
+    private fun readSortMode(key: String, fallback: SortMode): SortMode =
+        prefs.getString(key, null)
+            ?.let { runCatching { SortMode.valueOf(it) }.getOrNull() }
+            ?: fallback
+
     /**
      * Reproduce una cancion desde resultados de búsqueda. Construye una
      * lista de reproducción con todas las canciones que matchearon (no
@@ -375,5 +408,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private const val KEY_QUEUE_IDS = "queue_ids"
         private const val KEY_QUEUE_INDEX = "queue_index"
         private const val KEY_POSITION_MS = "position_ms"
+        private const val KEY_SORT_FOLDER = "sort_folder"
+        private const val KEY_SORT_SONG = "sort_song"
     }
 }
