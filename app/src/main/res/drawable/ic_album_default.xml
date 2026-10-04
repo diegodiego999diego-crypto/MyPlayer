@@ -3,8 +3,7 @@
     android:width="64dp"
     android:height="64dp"
     android:viewportWidth="64"
-    android:viewportHeight="64"
-    android:tint="?attr/colorControlNormal">
+    android:viewportHeight="64">
     <!-- Fondo redondeado -->
     <path
         android:fillColor="#22FFFFFF"
