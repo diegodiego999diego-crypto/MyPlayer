@@ -24,10 +24,14 @@ class RecursiveFileObserver(
     /**
      * Mascara explicita en lugar de ALL_EVENTS (que esta deprecated
      * desde API 29) para evitar warnings y ser claros con lo que se
-     * escucha.
+     * escucha. Las constantes son estaticas de FileObserver (Java);
+     * en Kotlin hay que cualificarlas con FileObserver.<NAME>.
      */
-    private val mask = CREATE or DELETE or MOVED_FROM or MOVED_TO or
-        DELETE_SELF or MOVE_SELF or ATTRIB or MODIFY or CLOSE_WRITE
+    private val mask: Int =
+        FileObserver.CREATE or FileObserver.DELETE or
+        FileObserver.MOVED_FROM or FileObserver.MOVED_TO or
+        FileObserver.DELETE_SELF or FileObserver.MOVE_SELF or
+        FileObserver.ATTRIB or FileObserver.MODIFY or FileObserver.CLOSE_WRITE
 
     fun startWatching() {
         synchronized(observers) {
@@ -57,11 +61,19 @@ class RecursiveFileObserver(
         dir.listFiles()?.filter { it.isDirectory }?.forEach { addRecursive(it) }
     }
 
-    private inner class SingleObserver(val dir: File) : FileObserver(dir, mask) {
+    /**
+     * FileObserver(File, Int) es API 31+. Como minSdk = 29, usamos el
+     * constructor FileObserver(String, Int) con dir.absolutePath, que
+     * existe desde API 1 y es seguro en todas las versiones soportadas.
+     */
+    private inner class SingleObserver(val dir: File) :
+        FileObserver(dir.absolutePath, mask) {
+
         override fun onEvent(event: Int, path: String?) {
             val type = event and 0xfff // ALL_EVENTS mask low bits
 
-            if (type == DELETE_SELF || type == MOVE_SELF) {
+            if (type == FileObserver.DELETE_SELF || type == FileObserver.MOVE_SELF) {
+                // La carpeta observada desaparecio: quitar su observador
                 synchronized(observers) {
                     observers.remove(dir.absolutePath)
                     stopWatching()
@@ -70,7 +82,7 @@ class RecursiveFileObserver(
 
             val absolute: String? = path?.let { File(dir, it).absolutePath }
 
-            if (path != null && (type == CREATE || type == MOVED_TO)) {
+            if (path != null && (type == FileObserver.CREATE || type == FileObserver.MOVED_TO)) {
                 // Si nacio una carpeta nueva, observarla tambien (recursivo)
                 val child = File(dir, path)
                 if (child.isDirectory) {

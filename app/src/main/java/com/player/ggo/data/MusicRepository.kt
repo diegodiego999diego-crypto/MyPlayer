@@ -122,7 +122,7 @@ class MusicRepository(private val context: Context) {
         queryAndCache()
     }
 
-    private fun queryAndCache() {
+    private suspend fun queryAndCache() {
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,

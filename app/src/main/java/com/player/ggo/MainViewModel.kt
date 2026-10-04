@@ -162,8 +162,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val future = MediaController.Builder(context, token).buildAsync()
         future.addListener({
             controller = future.get().apply {
-                setSeekBackIncrementMs(10_000)
-                setSeekForwardIncrementMs(10_000)
+                // setSeekBackIncrementMs / setSeekForwardIncrementMs no
+                // existen en la interfaz Player (MediaController) en
+                // Media3 1.4.x; se configuran en ExoPlayer.Builder
+                // dentro de MusicPlayerService.
                 addListener(playerListener)
                 repeatMode = _uiState.value.repeatMode
             }
