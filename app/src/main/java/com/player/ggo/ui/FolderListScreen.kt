@@ -3,12 +3,16 @@ package com.player.ggo.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
@@ -20,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -105,27 +110,40 @@ fun FolderListScreen(vm: MainViewModel) {
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Barra de búsqueda
+            // Barra de búsqueda en forma de píldora (esquinas totalmente
+            // redondeadas), contenedor tonal, lupa + X para limpiar.
             TextField(
                 value = state.searchQuery,
                 onValueChange = { vm.setSearchQuery(it) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .height(56.dp),
                 placeholder = { Text("Buscar por título, artista o carpeta") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 trailingIcon = {
                     if (state.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { vm.clearSearch() }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Limpiar",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 },
                 singleLine = true,
+                shape = RoundedCornerShape(percent = 50),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                     unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                     disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
@@ -159,26 +177,47 @@ fun FolderListScreen(vm: MainViewModel) {
                                     .clickable { vm.openFolder(folder) },
                                 leadingContent = {
                                     if (previewArt != null) {
-                                        AlbumArt(albumArtUri = previewArt, size = 48, corner = 8)
+                                        AlbumArt(albumArtUri = previewArt, size = 48, corner = 12)
                                     } else {
-                                        Icon(
-                                            Icons.Default.Folder,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
+                                        // Contenedor redondeado con primaryContainer y
+                                        // icono de carpeta en onPrimaryContainer: siempre
+                                        // se ve con buen contraste, sin gris plano.
+                                        Surface(
+                                            modifier = Modifier.size(48.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.size(48.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Folder,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.size(26.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 },
                                 headlineContent = {
-                                    Text(folder.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                },
-                                supportingContent = {
                                     Text(
-                                        "${folder.songs.size} canciones · ${folder.path}",
+                                        folder.name,
+                                        style = MaterialTheme.typography.bodyLarge,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        "${folder.songs.size} canciones",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             )
+                            Spacer(Modifier.height(4.dp))
                         }
                     }
 
