@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -33,8 +34,9 @@ import com.player.ggo.ui.formatDuration
  * play/pausa y boton siguiente. Al tocar el cuerpo (no los botones)
  * abre el reproductor completo.
  *
- * El llamador decide si mostrarlo o no (normalmente: cuando hay una
- * cancion cargada y el reproductor completo no esta visible).
+ * Usa navigationBarsPadding para quedar por encima de la barra de
+ * navegacion del sistema en modo edge-to-edge. El texto usa
+ * onSurface (no onSurfaceVariant) para mantener contraste normal.
  */
 @Composable
 fun MiniPlayer(vm: MainViewModel) {
@@ -45,7 +47,11 @@ fun MiniPlayer(vm: MainViewModel) {
         tonalElevation = 3.dp,
         shadowElevation = 8.dp,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
+        // navigationBarsPadding empuja el contenido por encima de los
+        // botones del sistema (gestural nav / 3-button nav).
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -69,6 +75,7 @@ fun MiniPlayer(vm: MainViewModel) {
                     Text(
                         text = song.title,
                         style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -85,11 +92,16 @@ fun MiniPlayer(vm: MainViewModel) {
             IconButton(onClick = { vm.togglePlayPause() }) {
                 Icon(
                     if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pausar" else "Reproducir"
+                    contentDescription = if (state.isPlaying) "Pausar" else "Reproducir",
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             IconButton(onClick = { vm.next() }) {
-                Icon(Icons.Default.SkipNext, contentDescription = "Siguiente")
+                Icon(
+                    Icons.Default.SkipNext,
+                    contentDescription = "Siguiente",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }
