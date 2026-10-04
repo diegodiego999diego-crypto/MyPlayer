@@ -5,6 +5,12 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -106,13 +112,34 @@ fun AppRoot(vm: MainViewModel = viewModel()) {
         if (granted) vm.onPermissionResult(true) else launcher.launch(permission)
     }
 
-    when {
-        !state.permissionGranted -> PermissionRequestScreen {
-            launcher.launch(permission)
+    val navTarget = when {
+        !state.permissionGranted -> "permission"
+        state.playerVisible -> "player"
+        state.selectedFolder != null -> "songs"
+        else -> "folders"
+    }
+
+    // El reproductor completo entra deslizandose desde abajo (como las
+    // apps de musica nativas); el resto de pantallas usan fundido.
+    AnimatedContent(
+        targetState = navTarget,
+        transitionSpec = {
+            when {
+                targetState == "player" ->
+                    (slideInVertically { it } + fadeIn()) togetherWith fadeOut()
+                initialState == "player" ->
+                    fadeIn() togetherWith (slideOutVertically { it } + fadeOut())
+                else -> fadeIn() togetherWith fadeOut()
+            }
+        },
+        label = "nav"
+    ) { target ->
+        when (target) {
+            "permission" -> PermissionRequestScreen { launcher.launch(permission) }
+            "player" -> PlayerScreen(vm)
+            "songs" -> SongListScreen(vm)
+            else -> FolderListScreen(vm)
         }
-        state.playerVisible -> PlayerScreen(vm)
-        state.selectedFolder != null -> SongListScreen(vm)
-        else -> FolderListScreen(vm)
     }
 }
 
