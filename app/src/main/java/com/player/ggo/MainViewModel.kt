@@ -232,6 +232,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Inserta una cancion justo despues de la que suena (cola "a continuacion").
+     * Si no hay nada en el reproductor, la reproduce directamente.
+     */
+    fun playNext(song: Song) {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) {
+            playSongs(listOf(song), 0)
+            return
+        }
+        songByMediaId = songByMediaId + (song.id.toString() to song)
+        c.addMediaItem(c.currentMediaItemIndex + 1, song.toMediaItem())
+    }
+
     private fun Song.toMediaItem(): MediaItem =
         MediaItem.Builder()
             .setMediaId(id.toString())

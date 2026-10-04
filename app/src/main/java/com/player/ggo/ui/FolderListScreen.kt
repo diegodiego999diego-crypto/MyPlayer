@@ -38,6 +38,7 @@ import com.player.ggo.data.MusicFolder
 import com.player.ggo.data.Song
 import com.player.ggo.ui.components.AlbumArt
 import com.player.ggo.ui.components.MiniPlayer
+import com.player.ggo.ui.components.SongListItem
 
 /**
  * Lista plana de TODAS las carpetas con musica dentro de /sdcard/Music,
@@ -46,6 +47,7 @@ import com.player.ggo.ui.components.MiniPlayer
  * - Con [searchQuery] vacio: lista de carpetas.
  * - Con query: seccion "Carpetas" (carpetas cuyo nombre matchea) +
  *   seccion "Canciones" (canciones cuyo titulo o artista matchea).
+ *   Mantener pulsada una cancion ofrece "Reproducir a continuacion".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,25 +167,11 @@ fun FolderListScreen(vm: MainViewModel) {
                             SectionHeader("Canciones")
                         }
                         itemsIndexed(matchedSongs, key = { _, s -> "s_${s.id}" }) { index, song ->
-                            ListItem(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { vm.playFromSearch(matchedSongs, index) },
-                                leadingContent = {
-                                    AlbumArt(albumArtUri = song.albumArtUri, size = 48, corner = 8)
-                                },
-                                headlineContent = {
-                                    Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                },
-                                supportingContent = {
-                                    Text(
-                                        "${song.artist} · ${song.folderName}",
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingContent = { Text(formatDuration(song.durationMs)) }
+                            SongListItem(
+                                song = song,
+                                supportingText = "${song.artist} · ${song.folderName}",
+                                onClick = { vm.playFromSearch(matchedSongs, index) },
+                                onPlayNext = { vm.playNext(song) }
                             )
                         }
                     }

@@ -23,10 +23,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.player.ggo.MainViewModel
-import com.player.ggo.ui.components.AlbumArt
 import com.player.ggo.ui.components.MiniPlayer
+import com.player.ggo.ui.components.SongListItem
 
-/** Canciones de la carpeta seleccionada. Al pulsar, reproduce y abre el player. */
+/**
+ * Canciones de la carpeta seleccionada.
+ * - Toque: reproduce y abre el player.
+ * - Mantener pulsado: menu con "Reproducir a continuacion".
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongListScreen(vm: MainViewModel) {
@@ -55,29 +59,11 @@ fun SongListScreen(vm: MainViewModel) {
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
             itemsIndexed(folder.songs, key = { _, s -> s.id }) { index, song ->
-                ListItem(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { vm.playSong(folder, index) },
-                    leadingContent = {
-                        AlbumArt(
-                            albumArtUri = song.albumArtUri,
-                            size = 48,
-                            corner = 8
-                        )
-                    },
-                    headlineContent = {
-                        Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    supportingContent = {
-                        Text(
-                            "${song.artist} · ${song.albumName}",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    trailingContent = { Text(formatDuration(song.durationMs)) }
+                SongListItem(
+                    song = song,
+                    supportingText = "${song.artist} · ${song.albumName}",
+                    onClick = { vm.playSong(folder, index) },
+                    onPlayNext = { vm.playNext(song) }
                 )
             }
         }
