@@ -2,10 +2,12 @@ package com.player.ggo.data
 
 import android.content.ContentUris
 import android.content.Context
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -86,6 +88,40 @@ class MusicRepository(private val context: Context) {
      * Tras este call, [foldersFlow] emite la lista nueva automaticamente.
      */
     suspend fun refreshFromMediaStore() = withContext(Dispatchers.IO) {
+        queryAndCache()
+    }
+
+    /**
+     * Pide a MediaScanner que indexe [paths] (archivos nuevos o
+     * modificados detectados por FileObserver) y luego reconsulta
+     * MediaStore y reescribe el cache Room.
+     */
+    suspend fun scanFilesThenRefresh(paths: List<String>) = withContext(Dispatchers.IO) {
+        if (paths.isNotEmpty()) {
+            // scanFile es async; el callback se dispara por path. Lanzamos
+            // todos a la vez y esperamos a que termine el escaneo global
+            // con un pequeno sleep defensivo (el callback no garantiza
+            // orden ni atomicidad). Es aceptable: refreshFromMediaStore
+            // reconsulta MediaStore justo despues.
+            runCatching {
+                val unique = paths.filter { it.isNotEmpty() }.distinct()
+                if (unique.isNotEmpty()) {
+                    MediaScannerConnection.scanFile(
+                        context.applicationContext,
+                        unique.toTypedArray(),
+                        null,
+                        null
+                    )
+                    // Pequena ventana para que MediaStore procese los
+                    // eventos de escaneo antes de reconsultar.
+                    delay(150)
+                }
+            }
+        }
+        queryAndCache()
+    }
+
+    private fun queryAndCache() {
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,

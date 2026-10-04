@@ -33,6 +33,7 @@ import com.player.ggo.ui.SongListScreen
 import com.player.ggo.ui.theme.MyPlayerTheme
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -47,10 +48,46 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        // Re-escaneo completo al abrir la app: cubre cambios con la app
+        // cerrada. Se hace en onStart para que tambien cubra el regreso
+        // desde segundo plano. Los observers se inician desde el
+        // ViewModel al conceder permiso (init-flow), asi que aqui no
+        // duplicamos arranque.
+        appViewModel()?.let { vm ->
+            if (vm.uiState.value.permissionGranted) {
+                vm.refreshFromMediaStore()
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Si la activity se esta terminando (no es solo rotacion),
+        // libera observers para no filtrar FileObserver/ContentObserver.
+        if (isFinishing) {
+            appViewModel()?.stopObservers()
+        }
+    }
+
+    /**
+     * Devuelve el MainViewModel actual si ya fue creado por Compose.
+     * Si la actividad acaba de crearse y Compose aun no corrio, retorna
+     * null y el re-escaneo de onStart se pospone al primer recoleccion
+     * de UiState (que dispara onPermissionResult).
+     */
+    private fun appViewModel(): MainViewModel? = AppRootVmHolder.vm
 }
+
+/** Holder estatico para que MainActivity pueda acceder al ViewModel
+ * desde onStart()/onStop() antes de que Compose lo reconfigure. */
+internal object AppRootVmHolder { @Volatile var vm: MainViewModel? = null }
 
 @Composable
 fun AppRoot(vm: MainViewModel = viewModel()) {
+    AppRootVmHolder.vm = vm
     val context = LocalContext.current
     val state by vm.uiState.collectAsState()
 

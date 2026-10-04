@@ -11,6 +11,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
+import com.player.ggo.data.MediaStoreObserver
 import com.player.ggo.data.MusicFolder
 import com.player.ggo.data.MusicRepository
 import com.player.ggo.data.RecursiveFileObserver
@@ -18,6 +19,7 @@ import com.player.ggo.data.Song
 import com.player.ggo.service.MusicPlayerService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,7 +48,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = MusicRepository(app)
     private var controller: MediaController? = null
     private var fileObserver: RecursiveFileObserver? = null
+    private var mediaStoreObserver: MediaStoreObserver? = null
     private var ticker: Job? = null
+    /** Debounce de eventos de FileObserver/ContentObserver. */
+    private var rescanJob: Job? = null
+    /** Buffer de rutas pendientes de scanFile (se vacia en cada rescan). */
+    private val pendingScanPaths = mutableSetOf<String>()
 
     /** Mapa mediaId -> Song para reconstruir currentSong al cambiar de pista. */
     private var songByMediaId: Map<String, Song> = emptyMap()
@@ -125,23 +132,55 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * FileObserver recursivo sobre /sdcard/Music.
-     * Ante cualquier alta, baja o movimiento de archivos/carpetas se
-     * re-escanea (con debounce), asi la lista siempre refleja el
-     * almacenamiento real.
+     * Observa /sdcard/Music con FileObserver recursivo (primario) y
+     * MediaStore.Audio con ContentObserver (respaldo). Ante cualquier
+     * alta, baja o movimiento se re-escanea con debounce; si FileObserver
+     * trae una ruta absoluta, se llama a MediaScannerConnection.scanFile()
+     * sobre ella antes de re-consultar, para que MediaStore indexe el
+     * archivo nuevo.
      */
     private fun startObserving() {
-        fileObserver?.stopWatching()
-        fileObserver = RecursiveFileObserver(MusicRepository.musicRoot) { _ ->
-            viewModelScope.launch {
-                refreshFromMediaStore()
-            }
-        }.also { it.startWatching() }
+        if (fileObserver == null) {
+            fileObserver = RecursiveFileObserver(MusicRepository.musicRoot) { absolutePath ->
+                if (absolutePath != null) {
+                    synchronized(pendingScanPaths) { pendingScanPaths.add(absolutePath) }
+                }
+                scheduleDebouncedRescan()
+            }.also { it.startWatching() }
+        }
+        if (mediaStoreObserver == null) {
+            mediaStoreObserver = MediaStoreObserver(getApplication()) {
+                scheduleDebouncedRescan()
+            }.also { it.register() }
+        }
     }
 
     fun stopObservers() {
         fileObserver?.stopWatching()
         fileObserver = null
+        mediaStoreObserver?.unregister()
+        mediaStoreObserver = null
+        rescanJob?.cancel()
+        rescanJob = null
+    }
+
+    /**
+     * Re-escaneo con debounce: junta eventos de FileObserver y
+     * ContentObserver durante [DEBOUNCE_MS] y luego ejecuta un unico
+     * scanFile()+refresh. Evita relevar MediaStore en cada evento de
+     * una rafaga (por ejemplo, al copiar muchos archivos).
+     */
+    private fun scheduleDebouncedRescan() {
+        rescanJob?.cancel()
+        rescanJob = viewModelScope.launch {
+            delay(DEBOUNCE_MS)
+            val paths = synchronized(pendingScanPaths) {
+                val copy = pendingScanPaths.toList()
+                pendingScanPaths.clear()
+                copy
+            }
+            runCatching { repo.scanFilesThenRefresh(paths) }
+        }
     }
 
     // ---------- Navegacion ----------
@@ -228,10 +267,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         ticker?.cancel()
-        fileObserver?.stopWatching()
-        fileObserver = null
+        stopObservers()
         controller?.release()
         controller = null
         super.onCleared()
+    }
+
+    companion object {
+        /** Debounce para rafagas de eventos de FileObserver/ContentObserver. */
+        private const val DEBOUNCE_MS = 800L
     }
 }
