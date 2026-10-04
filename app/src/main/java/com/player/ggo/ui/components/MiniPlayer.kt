@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.player.ggo.MainViewModel
+import com.player.ggo.ui.displayArtist
 import com.player.ggo.ui.formatDuration
 
 /**
@@ -72,7 +73,7 @@ fun MiniPlayer(vm: MainViewModel) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = song.artist,
+                        text = displayArtist(song.artist),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

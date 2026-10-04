@@ -50,6 +50,8 @@ import android.content.res.Configuration
 import com.player.ggo.MainViewModel
 import com.player.ggo.UiState
 import com.player.ggo.ui.components.AlbumArt
+import com.player.ggo.ui.displayArtist
+import com.player.ggo.ui.hasArtist
 
 /**
  * Reproductor a pantalla completa.
@@ -161,24 +163,32 @@ private fun PlayerLandscape(state: UiState, vm: MainViewModel, modifier: Modifie
 
 @Composable
 private fun SongTitles(state: UiState) {
+    val title = state.currentSong?.title?.takeIf { it.isNotBlank() } ?: "—"
     Text(
-        text = state.currentSong?.title ?: "—",
+        text = title,
         style = MaterialTheme.typography.headlineSmall,
-        maxLines = 1,
+        color = MaterialTheme.colorScheme.onSurface,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        maxLines = 2,
         overflow = TextOverflow.Ellipsis
     )
-    Text(
-        text = state.currentSong?.artist ?: "",
-        style = MaterialTheme.typography.bodyLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
-    )
+    val artist = state.currentSong?.artist
+    if (artist != null && hasArtist(artist)) {
+        Text(
+            text = displayArtist(artist),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
     state.currentSong?.albumName?.takeIf { it.isNotBlank() }?.let { album ->
         Text(
             text = album,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

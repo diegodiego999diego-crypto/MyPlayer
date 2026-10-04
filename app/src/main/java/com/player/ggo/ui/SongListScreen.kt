@@ -24,6 +24,7 @@ import com.player.ggo.SortMode
 import com.player.ggo.ui.components.MiniPlayer
 import com.player.ggo.ui.components.SongListItem
 import com.player.ggo.ui.components.SortMenuButton
+import com.player.ggo.ui.displayArtist
 
 /**
  * Canciones de la carpeta seleccionada.
@@ -79,7 +80,7 @@ fun SongListScreen(vm: MainViewModel) {
             itemsIndexed(sortedSongs, key = { _, s -> s.id }) { index, song ->
                 SongListItem(
                     song = song,
-                    supportingText = "${song.artist} · ${song.albumName}",
+                    supportingText = "${displayArtist(song.artist)} · ${song.albumName}",
                     onClick = { vm.playSongs(sortedSongs, index) },
                     onPlayNext = { vm.playNext(song) }
                 )

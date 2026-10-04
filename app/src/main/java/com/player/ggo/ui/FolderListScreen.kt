@@ -41,6 +41,7 @@ import com.player.ggo.ui.components.AlbumArt
 import com.player.ggo.ui.components.MiniPlayer
 import com.player.ggo.ui.components.SongListItem
 import com.player.ggo.ui.components.SortMenuButton
+import com.player.ggo.ui.displayArtist
 
 /**
  * Lista plana de TODAS las carpetas con musica dentro de /sdcard/Music,
@@ -188,7 +189,7 @@ fun FolderListScreen(vm: MainViewModel) {
                         itemsIndexed(matchedSongs, key = { _, s -> "s_${s.id}" }) { index, song ->
                             SongListItem(
                                 song = song,
-                                supportingText = "${song.artist} · ${song.folderName}",
+                                supportingText = "${displayArtist(song.artist)} · ${song.folderName}",
                                 onClick = { vm.playFromSearch(matchedSongs, index) },
                                 onPlayNext = { vm.playNext(song) }
                             )
